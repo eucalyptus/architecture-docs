@@ -1,0 +1,14 @@
+@startuml
+component "Thread Management" as libthreads
+component "Queue Management" as libq
+component "Async Callbacks" as libasync
+component "State Machines" as libfsm
+component "Listener Registry" as liblisteners
+component "Event Dispatch" as libevent
+component "Event Listeners" as libeventlisteners
+libevent -up-> liblisteners
+liblisteners -up-> libeventlisteners
+libfsm -up-> libasync
+libasync -up-> libq
+libq -up-> libthreads
+@enduml

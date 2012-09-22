@@ -1,0 +1,13 @@
+@startuml
+  interface "DNS Service Port" as dnsport
+  component "DNS Service" as dnsstate
+!ifdef VERBOSE
+  interface "Internal DNS Record Ops" as dnsops
+  component "Virtual Bucket DNS" as dnsbuckets
+  component "Instance DNS" as dnsinstances
+  dnsops -left-> dnsstate
+  dnsstate -left-> dnsbuckets
+  dnsstate -down-> dnsinstances
+!endif
+  dnsport -down-> dnsstate
+@enduml

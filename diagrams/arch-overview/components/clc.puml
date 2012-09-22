@@ -1,0 +1,43 @@
+@startuml
+left to right direction
+interface "EC2 API Ops" as clcec2
+interface "Metadata Service" as clcmetadata
+!ifdef VERBOSE
+package "Resource State" as clcrsrcstate {
+  component "Volume" as clcvolstate
+  component "Snapshot" as clcsnapstate
+  component "VM" as clcvmstate
+  component "Address" as clcaddrstate
+  component "Network Group" as clcnetstate
+  component "Images" as clcimagestate
+  component "Keypairs" as clckeystate
+}
+package "Request Processing" as clcrequests {
+  component "Resource\nAuthorization" as clcauth
+  component "Request\nValidation" as clcvalidate
+  component "Metadata\nOperations" as clcdescribe
+  component "Resource\nReservations" as clcreserve
+  component "SC\nAsync Workers" as clcscasync
+  component "CC\nAsync Workers" as clcccasync
+  clcec2 -down-> clcauth
+  clcauth -right-> clcvalidate
+  clcvalidate -right-> clcdescribe
+  clcvalidate -down-> clcreserve
+  clcreserve -left-> clcscasync
+  clcreserve -left-> clcccasync
+}
+package "State Polling" as clcpolling {
+  component "SC Polling" as clcscpolling
+  component "CC Polling" as clcccpolling
+}
+clcmetadata -up-> clcnetstate
+clcmetadata -up-> clcaddrstate
+clcrequests -down-> clcrsrcstate
+clcpolling -up-> clcrsrcstate
+
+!else
+component "CLC State" as clcstate
+clcec2 -down-> clcstate
+clcmetadata -up-> clcstate
+!endif
+@enduml

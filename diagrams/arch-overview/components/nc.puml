@@ -1,0 +1,16 @@
+@startuml
+interface "NC Ops" as ncops
+component "NC State" as ncstate
+!ifdef VERBOSE
+component "Describe Ops" as ncdescribe
+component "Control Ops" as nccontrol
+component "NC Async Workers" as ncworkers
+ncops -down-> ncdescribe
+ncops -down-> nccontrol
+nccontrol -left-> ncstate
+ncdescribe .right-> ncstate
+ncworkers -up-> ncstate
+!else
+ncops -down-> ncstate
+!endif
+@enduml

@@ -1,0 +1,13 @@
+@startuml
+interface "CC Operations" as cciface
+component "CC State" as ccstate
+component "NC State Polling" as ccncpolling
+!ifdef VERBOSE
+component "CLC Metadata Polling" as ccclcpolling
+component "CC Network Management" as ccnet
+ccclcpolling -down-> ccnet
+ccnet -left-> ccstate
+!endif
+cciface -down-> ccstate
+ccncpolling -up-> ccstate
+@enduml

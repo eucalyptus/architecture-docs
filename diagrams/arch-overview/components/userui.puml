@@ -1,0 +1,13 @@
+@startuml
+package Browser as browser {
+  component "User UI" as userui
+}
+package Proxy as uiproxy {
+  interface "UI AJAX Ops" as uiajax
+  component "Request Translation" as uirequests
+  component "Backend Requests" as uibackend
+  uiajax -down-> uirequests
+  uirequests -down-> uibackend  
+}
+browser -down-> uiproxy  
+@enduml

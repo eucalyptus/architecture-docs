@@ -1,0 +1,20 @@
+@startuml
+interface "Storage Provisioning Ops" as sciface
+component "Volume Operations" as scvolops
+component "Snapshot Operations" as scsnapops
+sciface -down-> scvolops
+sciface -down-> scsnapops
+
+!ifdef VERBOSE
+component "Snapshot Async Workers" as scsnapworkers
+component "Volume Async Workers" as scvolworkers
+component "Snapshot Async Workers" as scvolworkers
+component "SC Service State" as scstate
+scvolops -right-> scstate
+scsnapops -left-> scstate
+scvolworkers -up-> scstate
+scsnapworkers -up-> scstate
+scvolops .down.> scvolworkers
+scsnapops .down.> scsnapworkers
+!endif
+@enduml

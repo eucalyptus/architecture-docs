@@ -1,0 +1,6 @@
+@startuml
+interface "Admin Web UI"
+component "HTTP Service (jetty)"
+component "Admin UI Backend"
+
+@enduml
