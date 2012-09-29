@@ -1,0 +1,8 @@
+@startuml
+
+
+package Walrus as walrus {
+!include components/walrus.puml
+}
+
+@enduml

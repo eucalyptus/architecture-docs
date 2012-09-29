@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+interface "S3 API Ops" as walruss3ops
+interface "Internal Image Ops" as walrusimageops
+interface "Internal Snapshot Ops" as walrussnapsops
+component "Walrus Control" as walruscontrol
+
+walruss3ops --> walruscontrol
+walrusimageops --> walruscontrol
+walrussnapsops --> walruscontrol
+
+!ifdef VERBOSE
+component "Walrus Manager" as walrusmanager
+component "Storage Manager" as walrusstoragemanager
+component "Image Manager" as walrusimagemanager
+component "Snapshot Manager" as walrussnapshotmanager
+component "Object Streaming Workers" as walrusstreaming
+component "Walrus API Protocols" as walrusprotocols
+component "Data Streaming" as walrusstreaming
+
+walruscontrol --> walrussnapshotmanager
+walruscontrol --> walrusmanager
+walruscontrol --> walrusimagemanager
+
+walrussnapshotmanager --> walrusstoragemanager
+walrusimagemanager --> walrusstoragemanager
+walrusmanager --> walrusstoragemanager
+
+walrusmanager --> walrusstreaming
+walrusimagemanager --> walrusstreaming
+walruscontrol --> walrusstreaming
+walrusprotocols --> walrusstreaming
+walrusmanager --> walrusprotocols
+!else
+
+@enduml

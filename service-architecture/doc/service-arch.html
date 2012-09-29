@@ -1,0 +1,217 @@
+<html>
+
+<h2>Eucalyptus Service Architecture</h2>
+
+Eucalyptus is organized a tiered ensemble of web services.  This missive
+outlines the organization of these services and the messaging 
+interaction that takes place between these services in
+response to user requests.
+<p>
+To begin with, it is important to understand that difference between a service
+and a container within the Eucalyptus architecture.  At its core,
+Eucalyptus uses an
+<a href="http://en.wikipedia.org/wiki/Enterprise_service_bus">
+Enterprise Service Bus</a> model as the basis for its architecture.  Service
+components "plug into" a universal naming and messaging software substrate
+that separates (abstracts away) communication and location functions
+throughout the ensemble.  As a result, all services "see" a common framework
+that handles secure message routing and delivery, regardless of physical
+location.
+
+<h2>Enterprise Service Bus and Eucalyptus Service Components</h2>
+
+The service bus is implemented as a logical communication channel between web
+service containers that are, in turn, run by web servers.  The web service
+containers take care of message intergrity, security, and dispatch and the web
+servers take care of manageing the container lifecycle (starting a container,
+stopping a container, etc.)
+<p>
+Thus, at a high level, the message flow between <i>any</i> two internal
+Eucayptus services that are located on separate machines is
+<ul>
+<li> the sending service components puts the message on the Enterprise Bus
+<li> the Enterprise Bus calls the web service stack to implement the
+communication
+<li> the web service stack uses the web server to connect to the network and
+send the message to another web server
+<li> the receiving web server hands the message to the receiving web 
+service stack
+<li> the receiving stack puts the message on the Enterprise Bus
+<li> the receiving service gets the message from the Enterprise Bus
+</ul>
+However, if the services are located on the same machine they work in exactly
+same way (they do not need to be specialized for local and remote
+communication) because of the bus.  Indeed, the implementation of the
+Enterprise bus short-cuts the message path to bypass the web service stack and
+to deliver the message directly when two services are co-located and they are
+both written in Java.  For this
+reason, services that are running on the same physical machine run in the 
+same Java virtual machine.  If the services are written in different languages
+(C and Java, for example) then they must use the full stack and communicate
+using local Linux networking via sockets.
+<p>
+Note that this model is asynchronous which means that all service components
+must supply a "call back" handler for the bus to call when a message is to be
+delivered.  All Eucalyptus software components, fundamentally, use this
+bus-style architecture to communicate.  That is, regardless of the service,
+the Eucalyptus code that implements the service interfaces to the bus, both to
+send messages to other components, and to receive messages via call backs, and
+the bus and the web service software take care of securely transmitting the
+information in a single, uniform way.
+
+<h2>Major Eucalyptus Service Components</h2>
+
+Eucalyptus consists of 7 major service components:
+<ul>
+<li><b>The Cloud Controller (CLC)</b> -- The CLC implements request processing
+for all AWS EC2 requests.  It also coordinates the Eucalyptus secure 
+bootstrapping and component registartion protocol.
+<li><b>EUARE</b> -- The EUARE service implements the Eucalyptus identity
+management system.  EUARE is compatible with the AWS Identity Access
+Management (IAM) API.  It also includes extensions specifically added for
+enterprise clouds such as resource quotas.
+<li><b>Walrus</b> -- Walrus implements object storage for Eucalyptus.  It is
+interface compatible with the AWS Simple Storage Service (S3).
+<li><b>The Cluster Controller (CC)</b> -- The CC implements the
+Eucalyptus-internal software defined networking subsystem that virtualizes the
+network used by virtual machines (VMs) that are 
+hosted within the Eucalyptus cloud.  It also
+implements VM scheduling for a partition of the compute resources (often
+termed a "cluster") within the overall Eucalyptus cloud.
+<li><b>The VMWare Broker</b> -- The VMWare broker acts as a gateway between
+the CC and VMWare virtualization components and services.  
+It exports the same
+Eucalyptus-internal API as the Node Controller so that the CC can operate
+either without including specialized functionality for either.
+<li><b>The Storage Controller (SC)</b> -- The SC implements the Eucalyptus
+Block Storage (EBS) protocol.  EBS is compatible with the AWS Elastic Block
+Store API, allowing virtual machines to attach block storage devices through
+the cloud network.
+<li><b>The Node Controller (NC)</b> -- The NC actuates virtual machines on
+Linux machines that support an open source hypervisor.  It creates a bootable
+instance from an image (stored in Walrus), configures the software defined
+network, and attaches any block devices that the user requests.
+</ul>
+<img src=arch.png width=1000>
+The Figure depicts the 7 Eucalyptus top level components and their messaging
+relationships.  Each blue arrow indicates a message request from the requester
+to the target.  The green arrows show which componets have access to a
+distributed shared database service that is used to implement state
+persistence (discussed below). 
+
+<h3>The Eucalyptus Front End</h3>
+
+Requests from users or the cloud administrators (left side of
+the figure) are delivered
+to the CLC, EUARE, or Walrus, depending on the specific call.  These
+services collectively form the Eucalyptus "front end" or "top tier"
+of a deployment.  The Eucalyptus
+web service stack (not shown in the figure) takes care of message dispatch to
+the appropriate service within the front end.  Walrus uses a <a
+href="http://en.wikipedia.org/wiki/Category:Linux_file_systems">Linux file
+system</a> as a storage medium for the objects it manages (depicted as an
+inverted triangle in the figure).
+
+<h3>The Eucalyptus Middle End</h3>
+
+The CC, VMWare Broker, and SC compose the "middle end" or "middle tier" of a
+Eucalyptus deployment.  The CLC sends VM provisioning commands to the CC and
+block storage volume commands to the SC.  The CC communicates with the VMWare
+Broker to actuate virtualization commands.  The CC also interacts with Linux
+to implement Eucalyptus' software defined networking abstractions.  It manages
+<a href="http://en.wikipedia.org/wiki/Iptables">Linux iptables rules</a>
+to implement firewalls and address translation, 
+<a href="http://linux-ip.net/html/routing-tables.html">Linux routing
+tables</a> entries, a <a
+href="http://www.yolinux.com/TUTORIALS/DHCP-Server.html">Linux DHCP
+server</a>, and <a
+href="http://www.techrepublic.com/article/linux-101-use-ifconfig-in-linux-to-configure-your-network/6040932">Linux
+network interface state</a> by "shelling out" to a Linux system that will act
+as a software router (typically the machine hosting the CC).  These
+interactions with infrastructure outside of Eucalyptus (Linux and VMWare) are
+depicted as inverted triangles in the figure. 
+<p>
+The SC sends snapshot storage requests to Walrus as snapshots are stored as
+objects in Eucalyptus.
+
+<h3>The Eucalyptus Back End</h3>
+
+The back end of a Eucalyptus deployment is composed of Node Controllers (NCs).
+Each host that uses a Linux system as a controlling domain (e.g. each host
+running either a <a href="http://www.xen.org">Xen</a> or <a
+href="http://www.linux-kvm.org/page/Main_Page">KVM</a> hypervisor) must host
+an NC service.  The NC fields requests from the CC for VM, network, and block
+storage acuation.  It requests images from Walrus, and sends volume attach and
+detach requests to the SC.  The NC also interacts with the Linux system
+hosting it via "shell outs" to implement instance caching.  These local Linux
+interactions are depicted as inverted triangles in the figure.  
+
+<h2>State Persistence</h2>
+
+Eucalyptus is crash consistent which means that if any service is stopped due
+to machine crash, software failure, network failure, etc. any internal state
+necessary to allow the service to continue once it is able to run again is
+persisted in a database (shown within the green circle in the figure).
+Currently, all components have access to this distributed database service
+except the CC and NC.  The CC is stateless, and the NC uses a local Linux file
+to store a small amount of state associated with implementing a local instance
+cache.  
+<p>
+To prevent the database from becoming a performance bottleneck, Eucalyptus
+implements a two-level caching system.  All components using the database
+service use <a
+href="http://en.wikipedia.org/wiki/Hibernate_(Java)">Hibernate</a> to map
+their Java objects to a relational database representation.  These objects are
+stored in memory, but committed to the database (under Eucalyptus control) so
+as to ensure causal consistency.  To further insulate Eucalyptus from the
+potential of database congestion, objects are also stored 
+<a href="http://docs.jboss.com/jbcache/1.2.4/TreeCache/html">Tree Cache</a> --
+a component of <a href="http://www.jboss.org">JBOSS</a>.  Tree Cache
+implements a distributed and replicated transactional object cache.  Thus an
+object is replicated in memory across Java vitual machines as it is sent to
+the database.
+<p>
+In addition to providing fast persistence to support crash consistency, this
+persistence architecture is the basis of primary-backup High Availability (HA)
+for the Eucalyptus platform itself.  The object persistence service (accessed
+via a Eucalyptus-internal API) can be configured to use two separate database
+installations as a synchronized backing store.  To determine which database is 
+the currently active primary as well as to trigger a resynchronization after
+database or network failure, the persistence stack uses <a
+href="http://www.jgroups.org">Jgroups</a> to determine active component group
+membership.
+
+<h2>The Java Web Service Stack</h2>
+
+The following figure shows the Java web service stack.  
+<img src=ws-stack.png width=1000>
+Elements depicted in blue are Eucalyptus specific.  Elements shown in red are
+implemented in conjunction with an existing
+open source technology (shown in parentheses).  All Java
+services within Eucalyptus use the functionality implemented by this stack.  
+<p>
+Note that while the data persistence service is built into the stack itself,
+and hence is available to all Java components, the persistence layer <i><b>is
+not</b></i> used as a communication medium.  That is, while each 
+Eucalyptus service component written in Java has access to the distributed
+object cache, they each use it individually for data persistence and not to
+communicate data between services.  Messages between services carry all
+necessary state instead.  This architectural decision makes it possible to
+use different language technologies to implement future services (or service
+replacements).  That is, a Eucalyptus service does not need to be able to
+access Java objects in the persistence layer in order to be part of the 
+overall system.
+
+<h2>Control Path and Data Path</h2>
+
+<h2>Request Processing</h2>
+
+These front-end services authenticate each request using 
+<a href="http://en.wikipedia.org/wiki/Public-key_infrastructure">
+PKI</a> certificates.  Certificate management (creation, deletion, etc.) is
+implemented by a service component within the CLC (not shown in the figure).
+This service stores the necessary user credential information securely in the
+database.
+
+
+</html>

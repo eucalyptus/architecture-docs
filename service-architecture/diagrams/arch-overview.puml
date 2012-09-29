@@ -1,0 +1,74 @@
+@startuml
+component "Client Tools" as client
+component "Admin Tools" as admin
+
+
+package EUARE as euare {
+!include components/euare.puml
+}
+
+package Walrus as walrus {
+!include components/walrus.puml
+}
+
+package CLC as clc {
+!include components/clc.puml
+}
+
+package StorageController as sc {
+!include components/sc.puml
+}
+
+package VMwareBroker as vb {
+!include components/vmwarebroker.puml
+}
+
+!ifdef VERBOSE
+package Reporting {
+  !include components/reporting.puml
+}        
+
+package Properties {
+    interface "Configuration Management Ops" as propsiface
+    wsdispatch --> propsiface
+}        
+package AdminUI {
+!include components/adminui.puml
+}
+!endif
+
+package CC as cc {
+!include components/cc.puml
+}
+package NC as nc {
+!include components/nc.puml
+}
+
+clc -down-> cc
+clc -down-> sc
+clc -down-> vb
+clc -right-> walrus
+walrus -left-> euare
+clc -left-> euare
+
+cc -down-> nc
+cc -left-> vb
+vb -right-> cc
+
+nc -up-> walrus
+nc -up-> sc
+
+client -down-> clcec2
+client -down-> walruss3ops
+admin -down-> clcec2
+admin -down-> walruss3ops
+
+
+'clcdispatch -left-> euareiface
+'clcdispatch -right-> walruss3ops
+'clcdispatch --> clcec2
+'clcdispatch -down-> sciface
+'clcdispatch -down-> vbops
+'clcdispatch -down-> cciface
+'ccdispatch -down-> ncops
+@enduml

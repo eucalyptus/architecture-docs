@@ -1,0 +1,8 @@
+@startuml
+
+
+package EUARE as euare {
+!include components/euare.puml
+}
+
+@enduml

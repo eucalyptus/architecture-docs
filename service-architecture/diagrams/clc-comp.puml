@@ -1,0 +1,8 @@
+@startuml
+
+
+package CLC as clc {
+!include components/clc.puml
+}
+
+@enduml

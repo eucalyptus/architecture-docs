@@ -1,0 +1,10 @@
+@startuml
+left to right direction
+interface "IAM/STS API Ops" as euareiface
+component "Account, User, Group State" as euarestate
+!ifdef VERBOSE
+component "LDAP Synchronization" as euareldap
+euareldap -left-> euarestate
+!endif
+euareiface -down-> euarestate
+@enduml

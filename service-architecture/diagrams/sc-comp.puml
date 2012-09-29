@@ -1,0 +1,8 @@
+@startuml
+
+
+package SC as sc {
+!include components/sc.puml
+}
+
+@enduml

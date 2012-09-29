@@ -1,0 +1,21 @@
+@startuml
+component "Component ID" as compid
+!ifdef VERBOSE
+component "Pipelines" as compws
+component "Bootstrappers" as compbootstrappers
+component "Service Builder" as compbuilder
+component "Authentication" as compauth
+component "Service Model" as compmodel
+component "Service Configuration" as compconfig
+component "Message Definitions" as compmsgs
+component "Sensors" as compsensors
+compid -down-> compmodel
+compid -right-> compbuilder
+compbuilder -down-> compconfig
+compmodel -down-> compws
+compws -left-> compauth
+compmodel -left-> compmsgs
+compid -left-> compbootstrappers
+compconfig -down-> compsensors
+!endif
+@enduml

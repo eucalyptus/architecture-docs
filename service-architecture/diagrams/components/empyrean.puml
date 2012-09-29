@@ -1,0 +1,37 @@
+@startuml
+!ifdef VERBOSE
+package Bootstrap as boot {
+  component "Local Bootstrap" as bootlocal
+  component "Distributed Bootstrap" as bootdist
+  bootlocal -down-> bootdist
+}
+package "Component Definition" as compdef {
+!include component.puml
+}
+!endif
+package "Web Services Stack" as wsstack {
+  interface "HTTP(S) Service Port" as wsport
+  component "Service Dispatch" as wsdispatch
+!ifdef VERBOSE
+  component "HTTP server" as wshttp
+  component "Protocol Multiplexing" as wspipelines
+  wsport -down-> wshttp
+  wshttp -down-> wspipelines
+  wspipelines -down-> wsdispatch
+!else
+  wsport -down-> wsdispatch
+!endif
+}
+!ifdef VERBOSE
+package Topology as topo {
+  interface "Service Management Ops" as topoops
+  component "Topology Management" as topomgmt
+  component "Arbitrator" as arbitrator
+  topoops -right-> topomgmt
+  arbitrator -left-> topomgmt
+}
+boot -up- topo : bootstrap\nfault detection
+topo -down- compdef : service management\nfault detection
+wsstack -right- topo : service routing
+!endif
+@enduml

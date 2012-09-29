@@ -1,0 +1,7 @@
+@startuml
+
+package NC as nc {
+!include components/nc.puml
+}
+
+@enduml

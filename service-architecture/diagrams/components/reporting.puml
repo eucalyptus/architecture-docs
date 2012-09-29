@@ -1,0 +1,25 @@
+@startuml
+component "Reporting Datawarehouse" as reportdw
+!ifdef VERBOSE
+component "Report Generation CLI" as reportcli
+component "Datawarehouse CLI" as reportdwcli
+package "Reporting Service" as reporting {
+  interface "Reporting Data Export" as reportexport
+  interface "Reporting UI" as reportui
+  interface "Report Generation Web Service" as reportws
+  component "Reporting Data" as reportdata
+  component "Report Generation" as reportgen
+  component "Sensor Monitoring" as reportsensors
+  reportexport -down-> reportdata
+  reportws -down-> reportgen
+  reportui -down-> reportgen
+  reportgen -left-> reportdata
+  reportsensors -up-> reportdata
+}
+reportcli -down-> reportws
+reportdwcli -down-> reportexport
+reportdwcli -up-> reportdw
+!else
+component Reporting
+!endif
+@enduml

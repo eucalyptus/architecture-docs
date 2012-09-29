@@ -1,0 +1,16 @@
+@startuml
+interface "Node Controller Ops" as vbops
+component "Broker State" as vbstate
+!ifdef VERBOSE
+component "Describe Ops" as vbdescribe
+component "Control Ops" as vbcontrol
+component "Broker Async Workers" as vbworkers
+vbops -down-> vbdescribe
+vbops -down-> vbcontrol
+vbcontrol -left-> vbstate
+vbdescribe .right-> vbstate
+vbworkers -up-> vbstate
+!else
+vbops -down-> vbstate
+!endif
+@enduml

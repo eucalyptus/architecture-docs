@@ -1,0 +1,8 @@
+@startuml
+
+
+package CC as cc {
+!include components/cc.puml
+}
+
+@enduml

@@ -1,0 +1,18 @@
+@startuml
+interface "Persistence APIs (JPA)" as dbjpa
+!ifdef VERBOSE
+component "JDBC Replication (HA-JDBC)" as dbhajdbc
+component "DB Connection Pooling (Proxool)" as dbproxool
+component "Distributed Caching (TreeCache)" as dbtreecache
+component "Object Relational Mapping (Hibernate)" as dborm
+component "RDBMS Service (postgres)" as dbpostgres
+component "Persistence Service Management" as dbstate
+dbjpa --> dborm
+dborm --> dbtreecache
+dborm --> dbproxool
+dbproxool --> dbhajdbc
+dbhajdbc --> dbpostgres
+dbstate ..> dbpostgres : controls
+dbstate ..> dborm : controls
+!endif
+@enduml

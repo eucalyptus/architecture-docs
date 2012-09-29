@@ -1,0 +1,7 @@
+@startuml
+
+package VMwareBroker as vb {
+!include components/vmwarebroker.puml
+}
+
+@enduml
