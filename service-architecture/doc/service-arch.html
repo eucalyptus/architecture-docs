@@ -204,12 +204,27 @@ overall system.
 
 <h2>Control Path and Data Path</h2>
 
+With one exception, the Eucalyptus service components are part of a control
+plane and not in the the data path for cloud allocations.  The one exception
+is that Walrus performs the image decryption step of the AWS AMI protocol for
+an uncached image.  Thus each Eucalyptus service "actuates" the underlying
+hardware and software infrastructure but does not, itself, participate in the
+user's interaction with the resources that have been allocated. 
+<p>
+There are two implementation features of Eucalyptus, however that appear not
+to conform to this design principle and as such, bear some clarification.
+<p>
+The first concerns the implementation of software defined networking that
+Eucalyptus supports.  For each VM in a security group, Eucalyptus must
+provision a virtual network that is isolated at both layers 2 and 3.
+
 <h2>Request Processing</h2>
 
 These front-end services authenticate each request using 
 <a href="http://en.wikipedia.org/wiki/Public-key_infrastructure">
 PKI</a> certificates.  Certificate management (creation, deletion, etc.) is
-implemented by a service component within the CLC (not shown in the figure).
+implemented by a service component within the CLC (not shown in the 
+architecture figure).
 This service stores the necessary user credential information securely in the
 database.
 
