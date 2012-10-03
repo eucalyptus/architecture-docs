@@ -183,9 +183,9 @@ database or network failure, the persistence stack uses <a
 href="http://www.jgroups.org">Jgroups</a> to determine active component group
 membership.
 
-<h2>The Java Web Service Stack</h2>
+<h2>The Java Web Services Object Stack</h2>
 
-The following figure shows the Java web service stack.  
+The following figure shows the Java web service object stack.  
 <p>
 <img src=ws-stack.png width=1000>
 <p>
@@ -206,6 +206,20 @@ replacements).  That is, a Eucalyptus service does not need to be able to
 access Java objects in the persistence layer in order to be part of the 
 overall system.
 
+<h2>The Web Services Communication Stack</h2>
+
+When a message must traverse outside of the web service container in which it
+originates, the enterprise service bus uses a communication stack based on 
+<a href="http://en.wikipedia.org/wiki/SOAP">SOAP</a>.  
+<p>
+<img src=ws-comm.png, width=1000>
+<p>
+The figure shown above depicts the functional decomposition of the
+stack.  Note that the WS-Security policy defined for Eucalyptus 
+implements message authentication but does not specify message encryption (for
+performance reasons).  Thus control messages between non-colocated services
+are authenticated using PKI, but they are not encrypted.
+<p>
 <h2>Control Path and Data Path</h2>
 
 With one exception, the Eucalyptus service components are part of a control
