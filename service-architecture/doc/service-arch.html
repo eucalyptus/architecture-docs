@@ -321,7 +321,8 @@ request to a resource allocation thread in the third stage to begin the
 allocation request.
 <p>
 The resource allocation component makes an allocation request to the
-resource (e.g. sends a message to an external resource manager like VMWare or 
+resource (e.g. sends a message to another Eucalyptus process,
+an external resource manager like VMWare, or 
 issues a Linux command).  Again, the effect of the request or command is
 determined asynchronously.  The third stage polls the resource for status and
 updates an internal resource state object.  Once the entire request has been
@@ -332,5 +333,17 @@ allocation notifies "in progress" of the status, and the request moves to
 request, or that it has failed definitively.  If and when a subsequent 
 request for status or termination arrives, the appropriate status will be
 returned to the user. 
+<p>
+Internally, the stages use the enterprise service bus to communicate.
+As such, asynchronous communication is implemented via callbacks.  
+Externally, services
+poll for "ground truth."  That is, each service assumes that its internal data
+models the state of a request, but that state can become "stale" at any
+moment.  Thus, the service polls its external "resource" periodically to
+resynchronize the data model.  This information synchronization methodology
+obviates the need to implement reliable call backs, which is difficult to
+implement in a crash consistent manner.
+
+
 
 </html>
