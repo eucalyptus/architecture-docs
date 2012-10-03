@@ -274,65 +274,77 @@ hosts them is in the data path.
 <h2>Request Processing</h2>
 
 Eucalyptus services conform to a common three-stage architecture for request 
-processing.
+processing. 
 <p>
 <img src=service-message.png width=1000>
 <p>
+In the figure, the black arrows represent communication via method
+invocation/function call and/or call backs.  The green arrow represents a
+quesry to the "fulfilled" state, and the red arrows represent messages formed
+and transmittted via the web service stack. 
+<p>
+When a user request arrives from a client tool, the web service stack 
+takes care of authenticating the request.  
 The request processing stage authorizes each request using 
-<a href="http://en.wikipedia.org/wiki/Public-key_infrastructure">
-PKI</a> certificates.  Certificate management (creation, deletion, etc.) is
+an identifier that is associated with the user and the user's credentials.
+(<a href="http://en.wikipedia.org/wiki/Public-key_infrastructure">
+PKI</a> certificates.)  Certificate management (creation, deletion, etc.) is
 implemented by a service component within the CLC (not shown in the 
 architecture figure).
-This service stores the necessary user credential information securely using 
-the persistent object service.
 <p>
-Once a request is authorized, the validity of the request (syntax and
-semantics) are checked.  If the formation of the request is correct, it is
+Once a request is authorized, the validity of the request
+in terms of the parameters it references is checked.  For example, a
+<code>euca-run-instances</code> command refers to a number of other resources
+within a Eucalyptus cloud (an image, a kernel, a ram disk, a security group,
+etc.)  The validation stage quesries the state in the "fulfilled" subsystem in
+the
+state management stage to
+determine if these references are valid.
+<p>
+If the formation of the request is correct, it is
 forwarded to a reservation subsystem where any necessary
 capacity accounting is
-performed.  The request is also sent to the state management stage where it is
-logged "fulfilled."  The specific request is
-essentially fulfilled (even though the outcome may only be to be able to tell
-the user that the request is acknowledged and is pending) because Eucalyptus
-has taken responsibility for tracking the lifecycle of the outcome at this
-stage.   
-<p>
-Note that the AWS API (and indeed all popular IaaS API) make this
-differentiation.  Specifically, a request itself is distinct from the outcome
-it is requesting.  For example, a request to launch a VM is fulfilled when
-Eucalyptus takes responsibility for attempting to launch the VM.  The user can
-then be informed that her launch request is "done."  The VM launch itself
-happens asynchronously and a seaparte request must be issued by the user
-to determine when the launch is complete.  This request too is fulfilled when
-Eucalyptus can report the status and does not block waiting for the launch to
-finish.  Thus, an individual request (launch or status, in this case) is
-fulfilled even while the outcome (a VM launch) itself is pending.  
+performed.   Eucalyptus uses a conservative resource allocation policy when
+ever possible.  Thus when a resource allocation request is made by a user, the
+request processing stage "pre-allocates" the resource so that subsequent
+requests are not accepted if resources will be eventually unavailable.  
+Should the 
+allocation
+fail, the pre-allocation is reversed.
 <p>
 From the reservation stage, a success code is sent to the user indicating that
 the request has been accepted by Eucalyptus and any information that
-accompanies a response is returned.  Resource allocation is asynchronous.  If
+accompanies a response is returned.  
+Authorization, validation, reservation are sequential and synchronous but any
+actual
+resource allocation itself occurs asynchronously.  If
 the request is to allocate or to modify the allocation of a resource, then the
-request is forwaded to the "in progress" stage.
+request is forwaded to the "in progress" subsystem in the state management
+stage.
 <p>
-Here, Eucalyptus records that a request will be issued to an external
-component for resource management, the response for which will be received
+Eucalyptus records a request "in progress" before it is issued to an external
+component for resource management. The response for such a request
+is received
 asynchronously.  Thus Eucalyptus marks an object as "in progress" and issues a
 request to a resource allocation thread in the third stage to begin the
 allocation request.
 <p>
 The resource allocation component makes an allocation request to the
 resource (e.g. sends a message to another Eucalyptus process,
-an external resource manager like VMWare, or 
+an external resource manager such as VMWare, or 
 issues a Linux command).  Again, the effect of the request or command is
-determined asynchronously.  The third stage polls the resource for status and
+determined asynchronously.  The state update subsystem in the third stage
+polls the resource for status and
 updates an internal resource state object.  Once the entire request has been
 fulfilled or has been determined to have failed, the resource update stage
-contacts the resource allocation stage to indicate completion.  Resource
-allocation notifies "in progress" of the status, and the request moves to
+contacts the resource allocation stage to indicate completion via a call
+back stored in the object.  Resource
+allocation notifies "in progress" of the status (again via call back), and 
+the request moves to
 "fulfilled" to indicate that Eucalyptus has either performed the allocation
 request, or that it has failed definitively.  If and when a subsequent 
 request for status or termination arrives, the appropriate status will be
-returned to the user. 
+returned to the user as a result of s read from the fulfilled state. 
 <p>
 Internally, the stages use the enterprise service bus to communicate.
 As such, asynchronous communication is implemented via callbacks.  
@@ -343,7 +355,6 @@ moment.  Thus, the service polls its external "resource" periodically to
 resynchronize the data model.  This information synchronization methodology
 obviates the need to implement reliable call backs, which is difficult to
 implement in a crash consistent manner.
-
 
 
 </html>
