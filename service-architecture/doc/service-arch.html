@@ -92,7 +92,9 @@ Linux machines that support an open source hypervisor.  It creates a bootable
 instance from an image (stored in Walrus), configures the software defined
 network, and attaches any block devices that the user requests.
 </ul>
+<p>
 <img src=arch.png width=1000>
+<p>
 The Figure depicts the 7 Eucalyptus top level components and their messaging
 relationships.  Each blue arrow indicates a message request from the requester
 to the target.  The green arrows show which componets have access to a
@@ -184,7 +186,9 @@ membership.
 <h2>The Java Web Service Stack</h2>
 
 The following figure shows the Java web service stack.  
+<p>
 <img src=ws-stack.png width=1000>
+<p>
 Elements depicted in blue are Eucalyptus specific.  Elements shown in red are
 implemented in conjunction with an existing
 open source technology (shown in parentheses).  All Java
@@ -214,19 +218,119 @@ user's interaction with the resources that have been allocated.
 There are two implementation features of Eucalyptus, however that appear not
 to conform to this design principle and as such, bear some clarification.
 <p>
+<h3>Firewalls, NATs, and the CC</h3>
+
 The first concerns the implementation of software defined networking that
 Eucalyptus supports.  For each VM in a security group, Eucalyptus must
 provision a virtual network that is isolated at both layers 2 and 3.
+This isolation is implemented by
+<ul>
+<li> attaching a VM to a Linux bridge that has been configured to use a VLAN
+that is unique to the security group in which it runs
+<li> ensuring that all VMs within a security group are on the same layer 3
+subnetwork
+<li> making the default route for the VMs in a security group route to a Linux
+machines that Eucalyptus can use as a firewall and to implement network
+address translation (NAT).
+</ul>
+Currently, the CC uses the Linux machine that is hosting it to implement the
+firewall and NAT using iptables.  
+Thus all network traffic that is between a VM and an IP
+address outside of its security group traverses the firewall which is
+controlled by the CC.  However the result is that the machine that is hosting
+the CC is in the data path for non-internal security group IP traffic.
+<p>
+The Linux machine hosting the CC also implements the NAT for each VM.  Under
+the AWS networking semantics, each VM receives a "private" IP and a "public"
+IP.  the private IP is assigned to the VM's network interface and the public
+IP is installed as a NAT in the data path between the VM and the publicly
+routed network.  Eucalyptus implements this NAT on the Linux machine that acts
+as a firewall (the Linux machine hosting the CC).
+
+<h3>Implementing EBS using a Linux Host as the Storage Server</h3>
+
+The other scenario in which a Linux machine hosting a Eucalyptus component is
+potentially in the data path occurs when Eucalyptus is configured to use a
+Linux host as the block storage server for EBS.  Eucalyptus supports a number
+of different configurations for EBS using devices that can export iSCSI
+targets.  The default configuration uses <a
+href="http://stgt.sourceforge.net">Linux tgt</a> on the machine hosting the SC
+to export an iSCSI target and then the <a
+href="http://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)">Linux
+Logical Volume Manager</a> and <a
+href="http://en.wikipedia.org/wiki/Loop_device">Linux loop devices</a> to
+provide file-backed volumes.  In this default configuration of Eucalyptus,
+the SC commands the Linux machine hosting it to allocate and configure these
+native Linux facilities.
+<p>
+While both the CC and the SC may rely on the "local" Linux host to implement
+some functionality, neither the CC nor SC process itself is in the data path.
+For example, once the CC installs iptables rules on the Linux machine hosting
+it, the network traffic is handled by the Linux network stack without the CC
+process in the data path.  Thus the CC and SC are true "controllers" and are
+part of the control plane even when the machine that
+hosts them is in the data path.
 
 <h2>Request Processing</h2>
 
-These front-end services authenticate each request using 
+Eucalyptus services conform to a common three-stage architecture for request 
+processing.
+<p>
+<img src=service-message.png width=1000>
+<p>
+The request processing stage authorizes each request using 
 <a href="http://en.wikipedia.org/wiki/Public-key_infrastructure">
 PKI</a> certificates.  Certificate management (creation, deletion, etc.) is
 implemented by a service component within the CLC (not shown in the 
 architecture figure).
-This service stores the necessary user credential information securely in the
-database.
-
+This service stores the necessary user credential information securely using 
+the persistent object service.
+<p>
+Once a request is authorized, the validity of the request (syntax and
+semantics) are checked.  If the formation of the request is correct, it is
+forwarded to a reservation subsystem where any necessary
+capacity accounting is
+performed.  The request is also sent to the state management stage where it is
+logged "fulfilled."  The specific request is
+essentially fulfilled (even though the outcome may only be to be able to tell
+the user that the request is acknowledged and is pending) because Eucalyptus
+has taken responsibility for tracking the lifecycle of the outcome at this
+stage.   
+<p>
+Note that the AWS API (and indeed all popular IaaS API) make this
+differentiation.  Specifically, a request itself is distinct from the outcome
+it is requesting.  For example, a request to launch a VM is fulfilled when
+Eucalyptus takes responsibility for attempting to launch the VM.  The user can
+then be informed that her launch request is "done."  The VM launch itself
+happens asynchronously and a seaparte request must be issued by the user
+to determine when the launch is complete.  This request too is fulfilled when
+Eucalyptus can report the status and does not block waiting for the launch to
+finish.  Thus, an individual request (launch or status, in this case) is
+fulfilled even while the outcome (a VM launch) itself is pending.  
+<p>
+From the reservation stage, a success code is sent to the user indicating that
+the request has been accepted by Eucalyptus and any information that
+accompanies a response is returned.  Resource allocation is asynchronous.  If
+the request is to allocate or to modify the allocation of a resource, then the
+request is forwaded to the "in progress" stage.
+<p>
+Here, Eucalyptus records that a request will be issued to an external
+component for resource management, the response for which will be received
+asynchronously.  Thus Eucalyptus marks an object as "in progress" and issues a
+request to a resource allocation thread in the third stage to begin the
+allocation request.
+<p>
+The resource allocation component makes an allocation request to the
+resource (e.g. sends a message to an external resource manager like VMWare or 
+issues a Linux command).  Again, the effect of the request or command is
+determined asynchronously.  The third stage polls the resource for status and
+updates an internal resource state object.  Once the entire request has been
+fulfilled or has been determined to have failed, the resource update stage
+contacts the resource allocation stage to indicate completion.  Resource
+allocation notifies "in progress" of the status, and the request moves to
+"fulfilled" to indicate that Eucalyptus has either performed the allocation
+request, or that it has failed definitively.  If and when a subsequent 
+request for status or termination arrives, the appropriate status will be
+returned to the user. 
 
 </html>
