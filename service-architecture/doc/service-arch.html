@@ -1,7 +1,5 @@
 <html>
 
-
-
 <h2>Eucalyptus Service Architecture</h2>
 
 Eucalyptus is organized a tiered ensemble of web services.  This missive
@@ -24,12 +22,12 @@ location.
 
 The service bus is implemented as a logical communication channel between web
 service containers that are, in turn, run by web servers.  The web service
-containers take care of message intergrity, security, and dispatch and the web
-servers take care of manageing the container lifecycle (starting a container,
+containers take care of message integrity, security, and dispatch and the web
+servers take care of managing the container lifecycle (starting a container,
 stopping a container, etc.)
 <p>
 Thus, at a high level, the message flow between <i>any</i> two internal
-Eucayptus services that are located on separate machines is
+Eucalyptus services that are located on separate machines is
 <ul>
 <li> the sending service components puts the message on the Enterprise Bus
 <li> the Enterprise Bus calls the web service stack to implement the
@@ -67,7 +65,7 @@ Eucalyptus consists of 7 major service components:
 <ul>
 <li><b>The Cloud Controller (CLC)</b> -- The CLC implements request processing
 for all AWS EC2 requests.  It also coordinates the Eucalyptus secure 
-bootstrapping and component registartion protocol.
+bootstrapping and component registration protocol.
 <li><b>EUARE</b> -- The EUARE service implements the Eucalyptus identity
 management system.  EUARE is compatible with the AWS Identity Access
 Management (IAM) API.  It also includes extensions specifically added for
@@ -99,7 +97,7 @@ network, and attaches any block devices that the user requests.
 <p>
 The Figure depicts the 7 Eucalyptus top level components and their messaging
 relationships.  Each blue arrow indicates a message request from the requester
-to the target.  The green arrows show which componets have access to a
+to the target.  The green arrows show which components have access to a
 distributed shared database service that is used to implement state
 persistence (discussed below). 
 
@@ -145,7 +143,7 @@ Each host that uses a Linux system as a controlling domain (e.g. each host
 running either a <a href="http://www.xen.org">Xen</a> or <a
 href="http://www.linux-kvm.org/page/Main_Page">KVM</a> hypervisor) must host
 an NC service.  The NC fields requests from the CC for VM, network, and block
-storage acuation.  It requests images from Walrus, and sends volume attach and
+storage actuation.  It requests images from Walrus, and sends volume attach and
 detach requests to the SC.  The NC also interacts with the Linux system
 hosting it via "shell outs" to implement instance caching.  These local Linux
 interactions are depicted as inverted triangles in the figure.  
@@ -172,7 +170,7 @@ potential of database congestion, objects are also stored
 <a href="http://docs.jboss.com/jbcache/1.2.4/TreeCache/html">Tree Cache</a> --
 a component of <a href="http://www.jboss.org">JBOSS</a>.  Tree Cache
 implements a distributed and replicated transactional object cache.  Thus an
-object is replicated in memory across Java vitual machines as it is sent to
+object is replicated in memory across Java virtual machines as it is sent to
 the database.
 <p>
 In addition to providing fast persistence to support crash consistency, this
@@ -214,12 +212,12 @@ When a message must traverse outside of the web service container in which it
 originates, the enterprise service bus uses a communication stack based on 
 <a href="http://en.wikipedia.org/wiki/SOAP">SOAP</a>.  
 <p>
-<img src=ws-comm.png, width=1000>
+<img src=ws-comm.png width=1000>
 <p>
 The figure shown above depicts the functional decomposition of the
 stack.  Note that the WS-Security policy defined for Eucalyptus 
 implements message authentication but does not specify message encryption (for
-performance reasons).  Thus control messages between non-colocated services
+performance reasons).  Thus control messages between non-co-located services
 are authenticated using PKI, but they are not encrypted.
 <p>
 <h2>Control Path and Data Path</h2>
@@ -296,8 +294,8 @@ processing.
 <p>
 In the figure, the black arrows represent communication via method
 invocation/function call and/or call backs.  The green arrow represents a
-quesry to the "fulfilled" state, and the red arrows represent messages formed
-and transmittted via the web service stack. 
+query to the "fulfilled" state, and the red arrows represent messages formed
+and transmitted via the web service stack. 
 <p>
 When a user request arrives from a client tool, the web service stack 
 takes care of authenticating the request.  
@@ -312,7 +310,7 @@ Once a request is authorized, the validity of the request
 in terms of the parameters it references is checked.  For example, a
 <code>euca-run-instances</code> command refers to a number of other resources
 within a Eucalyptus cloud (an image, a kernel, a ram disk, a security group,
-etc.)  The validation stage quesries the state in the "fulfilled" subsystem in
+etc.)  The validation stage queries the state in the "fulfilled" subsystem in
 the
 state management stage to
 determine if these references are valid.
@@ -335,7 +333,7 @@ Authorization, validation, reservation are sequential and synchronous but any
 actual
 resource allocation itself occurs asynchronously.  If
 the request is to allocate or to modify the allocation of a resource, then the
-request is forwaded to the "in progress" subsystem in the state management
+request is forwarded to the "in progress" subsystem in the state management
 stage.
 <p>
 Eucalyptus records a request "in progress" before it is issued to an external
@@ -408,7 +406,7 @@ currently instantiated within the system.  If a parameter is missing and there
 is no default (e.g. the EMI is missing) or if the request refers to
 non-existent objects, the request fails and an error is returned to the user.
 <p>
-Next, the reservation subsystem in the CLC Reqiuest Processing Stage checks to
+Next, the reservation subsystem in the CLC Request Processing Stage checks to
 make sure there are enough resources to allow the request to be accepted by
 the system.  That is, it consults an accounting of the available "slots" for
 the instance request that includes previous "pre-allocated" requests in
@@ -427,7 +425,7 @@ resource allocation subsystem.
 <h3>CLC Resource Control Stage</h3>
 
 The resource allocation subsystem formulates and sends a request to the 
-CC for an instance run with the necsssary parameters (EMI, 
+CC for an instance run with the necessary parameters (EMI, 
 ERI, and EKI identifiers,
 security group identifier, user identifier, public ssh key to inject in the VM
 once it is launched, user meta data, etc.  The enterprise service bus
@@ -436,6 +434,14 @@ web services and the CLC uses Java-language web services so they cannot be
 co-located in the same Java virtual machine) and routes the message through
 the network to the CC using the Web Services Communication Stack as a SOAP
 message. 
+<p>
+For <code>euca-run-instances</code>, the CLC actually makes two requests to
+the CC separately and asynchronously.  The first requests a launch of the VM
+and the second requests that the CC attach a specific public IP to the VM.  
+The reason for diving this operation into two requests is so that the CLC can
+use the same mechanism to implement Elastic IPs from the AWS API.  While the
+CLC sends these two requests, its polling for status (described below) is for
+the complete VM state.
 <p>
 A separate polling thread in the Resource State Update subsystem of the
 Resource Control Stage in the CLC scans the
@@ -459,13 +465,13 @@ that all of the fields in the message are syntactically correct.
 The CC treats the correct receipt of a message that has been authenticated to
 be from the CLC as an authorized message.  It uses the SOAP and WSDL checking
 as part of validation.  In addition, it checks ranges of values in the request
-to enure that they are valid.  These checks are necessary to guard against
+to ensure that they are valid.  These checks are necessary to guard against
 possible misconfigurations (e.g. the CLC and CC do not agree on networking
 parameters due to inconsistent configuration files).
 <p>
 The CC reserves network state (MAC address, private IP address) for the
 instance as part of its Reservation subsystem and then triggers the next
-two stages.
+two stages.  
 
 <h3>CC State Management and Resource Allocation</h3>
 
@@ -474,41 +480,120 @@ continually refreshed through polling.  In the case of a
 <code>euca-run-instances</code> request, when the request is received, the CC
 chooses layer 2 MAC address and a layer 3 private IP address, selects an NC
 using an internal scheduler, and formulates and sends a request to the NC.
-No state persists in the CC after this message is sent but all state that the
+This state persists in the CC after the message is sent but in an ephemeral
+cache.  This cached state is used to associate a public IP address with the
+instance that is being started via a subsequent message from the CLC.  Notice
+that the processing of the instance launch and the IP address assignment are
+asynchronous and independent within the CC. 
+However, from a state management perspective, all state that the
 CC needs to recover from the NC is transmitted to the NC as part of this
-message.  The CC also triggers threads to install the necessary firewall and
+message.  The CC also triggers threads to 
+<ul>
+<li>install a DHCP entry for the VM
+using a local DHCP server (the VM will use DHCP to get its networking
+information)
+<li>install the necessary firewall and
 NAT rules in the local Linux host on which it is running using iptables.
-These rules in the kernel serve as the state for the CC -- it does not
-maintain internal other in-memory data structures to maintain them.
+</ul>
+These rules in the DHCP configuration files and the 
+kernel serve as the "ground truth" state for the CC -- it does not
+need other in-memory data structures to maintain them.  It does, however,
+cache them so that it does not need to "shell out" each time the state needs
+to be consulted.
+<p>
 Because the CC and NC cannot be co-located (the firewall an NAT rules
-implemented by the CC assume a non-colocated NC) the web service stack
+implemented by the CC assume a non-co-located NC) the web service stack
 generates a WSDL-described SOAP message and routes the message (using the
 certificate of the CC for authentication) to the NC.
 <p>
 The CC then proceeds to poll each NC on a regular duty cycle to determine the
 state of the NC resources.  In the case of a <code>euca-run-stances</code>, it
-will eventually "learn" from the NC that an instance exists on the NC.  This
+will eventually "learn" from the NC that an instance exists on that NC.  This
 state information from the NC is held in an in-memory cache that is completely
 refreshed on each duty cycle while the CC waits for a polling request from the
 CLC.  When the NC takes responsibility for the VM launch, a poll of the NC
 will return a response carrying the state that the CC needs to report back to
 the CLC indicating that the instance is "pending."  This state is saved in the
-CC cache until the next CLC polling request when it is forward.  Simiklarly,
-when the NC eventually runs the instance, the CC will determine that the
+CC cache until the next CLC polling request when it is forwarded.  Similarly,
+when the NC eventually runs the instance, the CC will only determine that the
 instance is running the next time it polls the NC.  It will cache that state
 temporarily until the next CLC request then forward the information. 
 
+<h3>NC Request Processing</h3>
 
--- disabled
--- vmtype not valid
--- min or max count < 0
--- network index length
--- network index out of bounds
--- capacity missing
+Like the CC, the NC relies on the Web Services Communication Stack to
+authenticate the message as being from the trusted CC, and the SOAP processing
+to determine that the message is well formed.  Message
+authentication serves as authorization for the message.  
+The NC then does some basic message
+sanity checking to ensure that the configuration information is consistent
+between the NC and the specifications in the request.  The combination of SOAP
+syntax checking and sanity checks form the validation subsystem.
+<p>
+The NC creates an in-memory cached data structure representing the instance.
+Again, like the CC, this record need not persist beyond the lifetime of the NC
+process as all of its information is recoverable from the "ground truth" state
+on the node.  Once this cached entry is created, the reservation subsystem
+completes its execution.
 
+<h3>NC State Management and Resource Control</h3>
 
+The NC marks the in-memory cached state for the instance as "STAGING" to
+indicate that it is "in progress" and then spawns a thread to launch the
+instance.  This thread issues Linux commands to the operating system on 
+the node itself via "shell outs" to
+<ul>
+<li>configure the network for the VM
+<li>construct the instance representation that the hypervisor requires
+<li>perform the key injection for the user's public ssh key (if supplied)
+<li>launch the instance on the local hypervisor.
+</ul>
+The NC attempts each of these operations a number of times if and when they
+report failure.  In addition, after an NC restart, it will interrogate the
+local Linux operating system state to rebuild the in-memory data structures
+representing the instances that are present.
 
+<h3>Status Delivery</h3>
 
+The status of the instance launch traverses back from the NC to the CC via the
+CC's polling of the NC.  Once the VM is running, the next polling request from
+the CC will detect the instance as "Extant."  Similarly, the next polling
+request from the CLC to the CC will pick up the status of the VM.  The CLC's  
+resource control stage will then use call backs to change the "in-progress"
+object state to the "fulfilled" state so that when the user runs a
+<code>euca-describe-instances</code> the appropriate status will be returned.
+
+<h3>Summary of the Message Flow for Running an Instance</h3>
+
+This sequence of service interactions can is summarized in the following
+figure.
+<p>
+<img src=run-message-flow.png width=1000>
+<p>
+The message numbers correspond to the following interactions.
+<ol>
+<li>The user submits a <code>euca-run-instances</code> request to the CLC
+<li>The CLC sends a request for the instance to the CC
+<li>The CLC sends a separate request to the CC to attach a public IP to the
+instance
+<li>The CLC is polling the CC to determine the status of the instance run
+request (will wait until the instance is reported as 'Extant.')
+<li>The CC queries the metadata service to determine networking configuration
+state for the instance
+<li>The CC sets up a DHCP configuration on the local Linux machine for the VM
+to use to obtain its networking
+<li>The CC sets up iptables rules for the firewall and NAT networking
+requirements
+<li>The CC sends a request to the NC to run the instance
+<li>The CC continuously polls the NC to determine the status of the request
+<li>The NC prepares an instance on the local Linux file system to launch with
+the hypervisor (if the instance is uncached, the NC would need to fetch the
+image from Walrus at this stage)
+<li>The NC launches the instance on the hypervisor
+</ol>
+Once the instance starts, the CC will pick up the successful running state
+first during its poll of the NC.  The CLC will subsequently pick up the
+instance success on a cycle after that.  
 
 
 </html>
