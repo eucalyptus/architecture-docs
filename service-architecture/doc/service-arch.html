@@ -370,5 +370,143 @@ resynchronize the data model.  This information synchronization methodology
 obviates the need to implement reliable call backs, which is difficult to
 implement in a crash consistent manner.
 
+<h2>An Example: Running an Instance</h2>
+
+The following sections illustrate how Eucalyptus functions in terms of 
+its service architecture and message flow using the user request to run an
+instance as an example.  The user command
+<p>
+<code>
+euca-run-instance emi-id -n instance-count -k user-key
+</code>
+is a typical user request to run <i>instance-count</i> instances with the
+specified user key using the Eucalyptus Machine Image (EMI) identified by
+<i>emi-id</i>.
+<p>
+The web services communication stack, using WS-Security, first authenticates
+the in-bound request.  If successful, it then performs message dispatch which,
+in the case of <code>euca-run-instances</code>, delivers the message to the
+CLC (it is an EC2 API request) and triggers the authorization subsystem in the
+request processing stage.
+
+<h3>CLC Request Processing Stage</h3>
+
+Authorization determines whether the user is authorized to run an instance,
+and if so, validates the request.  Validation must determine the default
+values for any missing parameters and then validate that the full parameter
+set refers to objects that are currently valid within the running Eucalyptus
+deployment.
+<p>
+For <code>euca-run-instances</code> the full parameter set includes an
+<i>eri-</i> (Eucalyptus Ramdisk Image), an <i>eki-</i> (Eucalyptus Kernel
+Image), a default security group name, a virtual machine type, etc.  
+Validation queries the
+"fulfilled" object state to determine that all objects referenced are
+currently instantiated within the system.  If a parameter is missing and there
+is no default (e.g. the EMI is missing) or if the request refers to
+non-existent objects, the request fails and an error is returned to the user.
+<p>
+Next, the reservation subsystem in the CLC Reqiuest Processing Stage checks to
+make sure there are enough resources to allow the request to be accepted by
+the system.  That is, it consults an accounting of the available "slots" for
+the instance request that includes previous "pre-allocated" requests in
+progress.  If there are enough resources available, the
+reservation subsystem decrements the
+available resources (makes a "pre-allocation" for this request) and
+forwards the request
+to the "in progress" subsystem in the state management stage.
+
+<h3>CLC State Management Stage</h3>
+
+In this example, the "in progress" stage notes that the request is pending and
+immediately triggers a thread to run in the Resource Control stage in the
+resource allocation subsystem.
+
+<h3>CLC Resource Control Stage</h3>
+
+The resource allocation subsystem formulates and sends a request to the 
+CC for an instance run with the necsssary parameters (EMI, 
+ERI, and EKI identifiers,
+security group identifier, user identifier, public ssh key to inject in the VM
+once it is launched, user meta data, etc.  The enterprise service bus
+recognizes that the CC is not co-located with the CLC (the CC using C-language
+web services and the CLC uses Java-language web services so they cannot be
+co-located in the same Java virtual machine) and routes the message through
+the network to the CC using the Web Services Communication Stack as a SOAP
+message. 
+<p>
+A separate polling thread in the Resource State Update subsystem of the
+Resource Control Stage in the CLC scans the
+list of objects for which requests to the CC are outstanding.  On a fixed duty
+cycle, these threads periodically send a message (again automatically routed as
+a SOAP message) to the CC requesting status update for the outstanding
+requests.
+
+<h3>CC Request Processing</h3>
+
+The request to run the instance is received in the CC as a SOAP message that
+is authenticated using WS-Security.  Note that the certificate for this
+authentication is a Eucalyptus-internal certificate that allows the
+communication stack to determine that the message originated from the
+correctly configured CLC.  In this way, the CC cannot be "spoofed" into
+accepting messages from unauthorized CLCs.  The SOAP message processing also
+compares the format of the message against a 
+<a href="http://www.w3.org/TR/wsdl">WSDL</a> described interface to determine
+that all of the fields in the message are syntactically correct.
+<p>
+The CC treats the correct receipt of a message that has been authenticated to
+be from the CLC as an authorized message.  It uses the SOAP and WSDL checking
+as part of validation.  In addition, it checks ranges of values in the request
+to enure that they are valid.  These checks are necessary to guard against
+possible misconfigurations (e.g. the CLC and CC do not agree on networking
+parameters due to inconsistent configuration files).
+<p>
+The CC reserves network state (MAC address, private IP address) for the
+instance as part of its Reservation subsystem and then triggers the next
+two stages.
+
+<h3>CC State Management and Resource Allocation</h3>
+
+The CC is stateless in that all of its internal data structures are
+continually refreshed through polling.  In the case of a
+<code>euca-run-instances</code> request, when the request is received, the CC
+chooses layer 2 MAC address and a layer 3 private IP address, selects an NC
+using an internal scheduler, and formulates and sends a request to the NC.
+No state persists in the CC after this message is sent but all state that the
+CC needs to recover from the NC is transmitted to the NC as part of this
+message.  The CC also triggers threads to install the necessary firewall and
+NAT rules in the local Linux host on which it is running using iptables.
+These rules in the kernel serve as the state for the CC -- it does not
+maintain internal other in-memory data structures to maintain them.
+Because the CC and NC cannot be co-located (the firewall an NAT rules
+implemented by the CC assume a non-colocated NC) the web service stack
+generates a WSDL-described SOAP message and routes the message (using the
+certificate of the CC for authentication) to the NC.
+<p>
+The CC then proceeds to poll each NC on a regular duty cycle to determine the
+state of the NC resources.  In the case of a <code>euca-run-stances</code>, it
+will eventually "learn" from the NC that an instance exists on the NC.  This
+state information from the NC is held in an in-memory cache that is completely
+refreshed on each duty cycle while the CC waits for a polling request from the
+CLC.  When the NC takes responsibility for the VM launch, a poll of the NC
+will return a response carrying the state that the CC needs to report back to
+the CLC indicating that the instance is "pending."  This state is saved in the
+CC cache until the next CLC polling request when it is forward.  Simiklarly,
+when the NC eventually runs the instance, the CC will determine that the
+instance is running the next time it polls the NC.  It will cache that state
+temporarily until the next CLC request then forward the information. 
+
+
+-- disabled
+-- vmtype not valid
+-- min or max count < 0
+-- network index length
+-- network index out of bounds
+-- capacity missing
+
+
+
+
+
 
 </html>
