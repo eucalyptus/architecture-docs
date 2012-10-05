@@ -2,17 +2,17 @@
 
 <h2>Eucalyptus Service Architecture</h2>
 
-Eucalyptus is organized a tiered ensemble of web services.  This missive
+Eucalyptus is organized as a tiered ensemble of web services.  This missive
 outlines the organization of these services and the messaging 
 interaction that takes place between these services in
 response to user requests.
 <p>
-To begin with, it is important to understand that difference between a service
+To begin with, it is important to understand the difference between a service
 and a container within the Eucalyptus architecture.  At its core,
 Eucalyptus uses an
 <a href="http://en.wikipedia.org/wiki/Enterprise_service_bus">
 Enterprise Service Bus</a> model as the basis for its architecture.  Service
-components "plug into" a universal naming and messaging software substrate
+components "plug into" a universal naming and messaging substrate software
 that separates (abstracts away) communication and location functions
 throughout the ensemble.  As a result, all services "see" a common framework
 that handles secure message routing and delivery, regardless of physical
@@ -32,7 +32,7 @@ Eucalyptus services that are located on separate machines is
 <li> the sending service components puts the message on the Enterprise Bus
 <li> the Enterprise Bus calls the web service stack to implement the
 communication
-<li> the web service stack uses the web server to connect to the network and
+<li> the web service stack connects to the network and
 send the message to another web server
 <li> the receiving web server hands the message to the receiving web 
 service stack
@@ -89,8 +89,9 @@ Store API, allowing virtual machines to attach block storage devices through
 the cloud network.
 <li><b>The Node Controller (NC)</b> -- The NC actuates virtual machines on
 Linux machines that support an open source hypervisor.  It creates a bootable
-instance from an image (stored in Walrus), configures the software defined
-network, and attaches any block devices that the user requests.
+instance from an image (stored in Walrus), configures the local virtual network
+devices connecting software defined network, and attaches any block devices 
+that the user requests.
 </ul>
 <p>
 <img src=arch.png width=1000>
@@ -105,7 +106,8 @@ persistence (discussed below).
 
 Requests from users or the cloud administrators (left side of
 the figure) are delivered
-to the CLC, EUARE, or Walrus, depending on the specific call.  These
+to the CLC, EUARE, Walrus, or Eucalyptus administrator services
+depending on the specific call.  These
 services collectively form the Eucalyptus "front end" or "top tier"
 of a deployment.  The Eucalyptus
 web service stack (not shown in the figure) takes care of message dispatch to
@@ -145,7 +147,8 @@ href="http://www.linux-kvm.org/page/Main_Page">KVM</a> hypervisor) must host
 an NC service.  The NC fields requests from the CC for VM, network, and block
 storage actuation.  It requests images from Walrus, and sends volume attach and
 detach requests to the SC.  The NC also interacts with the Linux system
-hosting it via "shell outs" to implement instance caching.  These local Linux
+hosting it via <tt>system</tt> invocations (shell outs) to implement instance caching.  
+These local Linux
 interactions are depicted as inverted triangles in the figure.  
 
 <h2>State Persistence</h2>
@@ -168,19 +171,19 @@ stored in memory, but committed to the database (under Eucalyptus control) so
 as to ensure causal consistency.  To further insulate Eucalyptus from the
 potential of database congestion, objects are also stored 
 <a href="http://docs.jboss.com/jbcache/1.2.4/TreeCache/html">Tree Cache</a> --
-a component of <a href="http://www.jboss.org">JBOSS</a>.  Tree Cache
-implements a distributed and replicated transactional object cache.  Thus an
-object is replicated in memory across Java virtual machines as it is sent to
-the database.
+a component of <a href="http://www.jboss.org">JBoss</a>.  Tree Cache
+implements a distributed and replicated transactional object cache.  Thus, an
+object is replicated in memory across Java virtual machines as a part of 
+committing a transaction to the database.
 <p>
 In addition to providing fast persistence to support crash consistency, this
-persistence architecture is the basis of primary-backup High Availability (HA)
+persistence architecture is the basis of primary-secondary High Availability (HA)
 for the Eucalyptus platform itself.  The object persistence service (accessed
 via a Eucalyptus-internal API) can be configured to use two separate database
 installations as a synchronized backing store.  To determine which database is 
 the currently active primary as well as to trigger a resynchronization after
 database or network failure, the persistence stack uses <a
-href="http://www.jgroups.org">Jgroups</a> to determine active component group
+href="http://www.jgroups.org">JGroups</a> to determine active component group
 membership.
 
 <h2>The Java Web Services Object Stack</h2>
@@ -199,10 +202,11 @@ and hence is available to all Java components, the persistence layer <i><b>is
 not</b></i> used as a communication medium.  That is, while each 
 Eucalyptus service component written in Java has access to the distributed
 object cache, they each use it individually for data persistence and not to
-communicate data between services.  Messages between services carry all
-necessary state instead.  This architectural decision makes it possible to
+communicate data between services.  Instead, messages between services carry all
+necessary state.  This architectural decision makes it possible to
 use different language technologies to implement future services (or service
-replacements).  That is, a Eucalyptus service does not need to be able to
+replacements) and serves as a generic data store while not precluding service specific
+specialization as appropriate.  That is, a Eucalyptus service does not need to be able to
 access Java objects in the persistence layer in order to be part of the 
 overall system.
 
@@ -212,7 +216,7 @@ When a message must traverse outside of the web service container in which it
 originates, the enterprise service bus uses a communication stack based on 
 <a href="http://en.wikipedia.org/wiki/SOAP">SOAP</a>.  
 <p>
-<img src=ws-comm.png width=1000>
+<img src="ws-comm.png" width=1000>
 <p>
 The figure shown above depicts the functional decomposition of the
 stack.  Note that the WS-Security policy defined for Eucalyptus 
@@ -227,7 +231,7 @@ plane and not in the the data path for cloud allocations.  The one exception
 is that Walrus performs the image decryption step of the AWS AMI protocol for
 an uncached image.  Thus each Eucalyptus service "actuates" the underlying
 hardware and software infrastructure but does not, itself, participate in the
-user's interaction with the resources that have been allocated. 
+user's interaction with the resources that has been allocated. 
 <p>
 There are two implementation features of Eucalyptus, however that appear not
 to conform to this design principle and as such, bear some clarification.
@@ -249,9 +253,9 @@ address translation (NAT).
 </ul>
 Currently, the CC uses the Linux machine that is hosting it to implement the
 firewall and NAT using iptables.  
-Thus all network traffic that is between a VM and an IP
+Thus, all network traffic that is between a VM and an IP
 address outside of its security group traverses the firewall which is
-controlled by the CC.  However the result is that the machine that is hosting
+controlled by the CC.  However, the result is that the machine that is hosting
 the CC is in the data path for non-internal security group IP traffic.
 <p>
 The Linux machine hosting the CC also implements the NAT for each VM.  Under
@@ -290,7 +294,7 @@ hosts them is in the data path.
 Eucalyptus services conform to a common three-stage architecture for request 
 processing. 
 <p>
-<img src=service-message.png width=1000>
+<img src="service-message.png" width=1000>
 <p>
 In the figure, the black arrows represent communication via method
 invocation/function call and/or call backs.  The green arrow represents a
@@ -302,7 +306,10 @@ takes care of authenticating the request.
 The request processing stage authorizes each request using 
 an identifier that is associated with the user and the user's credentials.
 (<a href="http://en.wikipedia.org/wiki/Public-key_infrastructure">
-PKI</a> certificates.)  Certificate management (creation, deletion, etc.) is
+PKI</a> certificates 
+or AWS-defined <a href="http://en.wikipedia.org/wiki/Hash-based_message_authentication_code">HMAC</a> 
+protocol based on shared keys)  
+Certificate management (creation, deletion, etc.) is
 implemented by a service component within the CLC (not shown in the 
 architecture figure).
 <p>
