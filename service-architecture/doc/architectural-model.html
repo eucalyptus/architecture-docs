@@ -1,0 +1,250 @@
+<html>
+<body>
+  <h1>Architectural Foundations</h1>
+  <p>At its core, Eucalyptus is a distributed system of web-services for
+    provisioning collections of related virtual resources using actual physical
+    resources. This function has a formative influence on the architecture of
+    the system. The Eucalyptus web-services coordinate to realize a logical
+    model that users specify through API operations by manipulating a variety of
+    distributed physical resources (compute hosts, networks, storage devices,
+    etc.).</p>
+  <p>The characteristics of this role, the involved resources and their
+    interactions are major influences on the system's' architecture. These can
+    be classified:</p>
+  <ul>
+    <li><strong>The Logical Model: Virtual Resources</strong> the
+      collection of related logical entities which the user of the system uses
+      to express the desired outcome.
+    <li><strong>The Information Model: Ground Truth & Physical
+        Resources</strong> the authoritative source of state information about some
+      resource or relationship. Implementation and operational realities have
+      lead us to co-locate ground truth with the physical resource. This feeds
+      back into the logical model used internally but is not otherwise visible
+      to users of the system.
+    <li><strong>The State Model: Resource Lifecycle & Interactions</strong>
+      Each resource has a set of logical states and transitions which a resource
+      goes through as the system works to actuate changes to physical resources.
+      Similarly, logical resources also have long-lasting (and possibly
+      stateful) interactions that can manifest as physical changes in the
+      system.
+    <li><strong>The Control/Concurrency Model: Service
+        Architecture</strong> Eucalyptus is organized as a tiered ensemble of web
+      services. Service components "plug into" a universal naming and messaging
+      substrate software that separates (abstracts away) communication and
+      location functions throughout the ensemble. All Eucalyptus software
+      components, fundamentally, use this bus-style architecture to communicate.
+    
+  </ul>
+  <p>
+    Taken together, these determine abstract model of the system, its <em>interfaces</em>,
+    <em>interactions</em>, and <em>behaviours</em>. Moreover, there are
+    implications on the physical/deployment model of the system's services which
+    follow from ground-truth living at the physical resource. The remaining
+    sections elaborate on these influences and their consequences.
+  </p>
+  <h2 style="clear: both">Logical Resource Model</h2>
+  <img src="logical-model.png" style="float: right"
+    title="Logical Resource Model" />
+  <p>
+    The logical resource model determines the vocabulary that is used to do work
+    using Eucalyptus. This vocabulary has nouns (virtual machine instance,
+    volume, bucket, etc.) and verbs (create, add, terminate, etc.) which are
+    expressed in (and intertwined with) the definition of the API operations of
+    the user-facing web-services. <br /> In Eucalyptus, we have 3 user-facing
+    services which expose operations for controlling logical resources. These
+    services and their related resources are depicted in the diagram to the
+    right.
+  </p>
+  <p>The following things are important to understand when looking at the
+    diagram:
+  <ol>
+    <li>The diagram depicts only top-level resource types -- it elides
+      dependent attributes, i.e., anything which has a one-to-one relationship
+      with a resource in terms of data and lifecycle.
+    <li>The diagram depicts only resource types that are part of the
+      logical model -- it elides important relatinships that result from the
+      physical realization of the logical resource. For example, a volume
+    <li>The cardinality relationships are varied (optional/required;
+      many-to-many/one-to-one) and can have a direction (e.g., an image can be
+      used by many instances, but an instance only uses one image).
+    <li>Relationships span across the user-facing services -- e.g., image
+      registrations (in the Cloud Controller) refer to objects (in Walrus).
+  </ol>
+  </p>
+  <h3>CLC</h3>
+  <ul>
+    <li>Instance
+    <li>Security Group
+    <li>Security Group Rules
+    <li>Volume
+    <li>Snapshot
+    <li>Image
+    <li>Keypair
+    <li>Public Address
+    <li>Zone
+  </ul>
+  <h3>Walrus</h3>
+  <ul>
+    <li>Bucket
+    <li>Object
+    <li>Grant
+  </ul>
+  <h3>EUARE</h3>
+  <ul>
+    <li>User
+    <li>Group
+    <li>Account
+    <li>Policy
+    <li>Credentials
+  </ul>
+  <h2 style="clear: both">The Information Model: Ground Truth & Physical
+    Resources</h2>
+  <img src="information-model.png" style="float: right;"
+    title="Information Model" />
+  <p>
+    A fundamental architectural principle in Eucalyptus is that <em>ground
+      truth</em> lives at the physical resource. What this means for the system is
+    that services which manage a resource are run at (or as close as possible
+    to) the resource. This has the benefit of focusing the service's purpose and
+    interfaces, defining when the service is authoritative about system state,
+    defining a narrow fault region, and dictates placement of the service in a
+    system deployment.
+  </p>
+  <p>
+    Looking to the logical model, it is clear that realizing such a model
+    requires the interaction of physically distributed components to control
+    things such as numerous compute hosts, network addressing, access, and
+    border services, storage devices, etc. As an example, the logical
+    <tt>instance</tt>
+    resource defines a coordinated collection of boot resources, compute,
+    networking, and storage -- it is <strong>not</strong> a virtual machine. The
+    consequence in Eucalyptus is that services are co-located with and
+    responsible for <em>ground truth</em> for resources and arbitrate
+    interactions between such resources.
+  </p>
+  <p>We distinguish two roles of services in Eucalyptus:
+  <ol>
+    <li><strong>API</strong> services act as <i>ground-truth</i> for the
+      logical model and are responsible for defining the logical resource,
+      coordinating creation and changes to the physical instantiation along with
+      the subsequent monitoring of its status.
+    <li><strong>Resource Management</strong> services are the stewards of <i>ground-truth</i>
+      for physical resources and are responsible for brokering access to use the
+      resource and acting as the authority on the resource's state.
+  </ol>
+  </p>
+  <p>Given that the physical world cannot be perfectly controlled, a
+    consequence of this is that API services must interrogate Resource
+    Management services and reconcile reality with the expectations of the
+    current logical resource state. For example, an instance which had been
+    previously run (and so was logically defined and then realized on a physical
+    resource) may have failed for reasons which are outside the control paths of
+    the system. Then, the reality is that the instance has failed and the
+    Resource Management service is responsible for detecting that failure and
+    exposing that information. Subsequently, the API services must be able to
+    discover and correspondingly report the change in the logical view of the
+    instance.</p>
+  <p>As a result, Eucalyptus has a number of internal services for this
+    purpose. Here is how they relate to the previously mentioned services:
+  <ul>
+    <li><strong>Cloud Controller:</strong> EC2 API service and operations
+      needed to support instance deployments.
+    <li><strong>Walrus:</strong> S3 API service and operations neeeded to
+      support object storage.
+    <li><strong>Cluster Controller:</strong> Backend service for private
+      networking, dynamic address assignment, and arbitrator of compute resource
+      allocation.
+    <li><strong>Storage Controller:</strong> Backend service for volume
+      operation and interactions like snapshot creation.
+    <li><strong>Node Controller:</strong> Backend services need to support
+      virtual machine operation and interactions like volume attachment, and
+      private network access.
+    <li>
+  </ul>
+  </p>
+  <h3>Instance</h3>
+  The information related to the logical instance resource spans all components
+  within the system. Fundamentally it can be broken down into those related to:
+  bootstrapping the virtual machine, setting up networking (private and public),
+  handling volume attachments, and bundling an instance.
+  <h5 style="clear:both;">Instance Store</h5>
+  <img src="information-model-instance-store.png" style="float: right;"
+    title="Instance Store Instance" />
+  <ul>
+    <li>Instance
+    <li>Image
+    <li>Object
+    <li>Virtual Machine
+  </ul>
+  <h5 style="clear:both;">Best Friend EBS</h5>
+  <img src="information-model-instance-bfebs.png" style="float: right;"
+    title="Instance Store Instance" />
+  <ul>
+    <li>Instance
+    <li>Image
+    <li>Snapshot
+    <li>Object
+    <li>Volume
+    <li>Storage Volume
+    <li>Storage Volume Export 
+    <li>Volume Attachment
+    <li>Virtual Machine
+  </ul>
+  <h4 style="clear:both;">Private Networking</h4>
+  <ul>
+    <li>Instance
+    <li>Security Group
+    <li>Private Network Tag
+    <li>Private Network Indexes
+  </ul>
+  <h4 style="clear:both;">Public Addressing</h4>
+  <ul>
+    <li>Instance
+    <li>Public Address
+    <li>Public Address Mapping
+  </ul>
+  <h4 style="clear:both;">Volume Attachments</h4>
+  <ul>
+    <li>Instance
+    <li>Volume
+    <li>Virtual Machine
+    <li>Volume Attachment
+    <li>Storage Volume
+    <li>Storage Volume Export
+  </ul>
+  <h4 style="clear:both;">Instance Bundling</h4>
+  <ul>
+    <li>Image
+    <li>Object
+    <li>Virtual Machine
+    <li>Bundling Instance
+  </ul>
+  <h3 style="clear:both;">Other Resource Operations</h3>
+  <h4 style="clear:both;">Volume Snapshots</h4>
+  <ul>
+    <li>Volume
+    <li>Snapshot
+    <li>Object
+    <li>Storage Volume
+    <li>Storage Snapshot Progress
+  </ul>
+  <h4 style="clear:both;">Image Registration</h4>
+  <ul>
+    <li>Image
+    <li>Bucket
+    <li>Object
+    <li>Manifest
+    <li>Image Parts
+  </ul>
+  <h2 style="clear: both">The State Model: Resource Lifecycle and
+    Interactions</h2>
+  <h3 style="clear: both">Resource Lifecycle</h3>
+  <p>
+    <b>TODO: per-resource lifecycles</b> (instance, group, )
+  </p>
+  <h3 style="clear: both">Resource Interactions</h3>
+  <p>
+    <b>TODO: per-resource interactions</b>
+  </p>
+</body>
+</html>
