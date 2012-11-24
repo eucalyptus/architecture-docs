@@ -1,0 +1,58 @@
+@startuml logical-model.png
+  skinparam shadowing true
+  skinparam ranksep 10
+  skinparam nodesep 10
+  skinparam linetype ortho
+  skinparam monochrome true
+  left to right direction
+  scale 768 width
+  frame "EUARE (IAM)" as euare {
+    component User as user
+    component Group as group
+    component Account as account
+    component "Policy\n(authorization)" as policy
+    component "Credentials\n(authentication)" as creds
+    account -- user : 1..n
+    account -- group : 1..n
+    user -- group : n..n
+    user -- creds : 1..n
+    group -- policy : 1..n
+    user -- policy : 1..n
+  }
+
+  frame "Cloud Controller (EC2)" as clc {
+    component "Instance" as instance
+    component "Security Group" as secgroup
+    component "Security Group Rules" as secgrouprule
+    component "Volume" as volume
+    component "Snapshot" as snapshot
+    component "Image" as image
+    component "Keypair" as keypair
+    component "Public Address" as publicaddress
+    component "Zone" as zone
+    secgroup -down-> instance : 1..n
+    secgroup -down- secgrouprule : 1..n
+    image -up-> instance : n..1
+    instance -- publicaddress : 1..{0,1}
+    instance --> volume : 1..n
+    volume -- snapshot : 1..n
+    instance --> keypair : 1..{0,1}
+    zone -- instance : 1..n
+    instance --> snapshot : 1..{0,1}
+  }
+  
+  frame "Walrus (S3)" as walrus {
+    component "Bucket" as bucket
+    component "Object" as object
+    component "Grant" as grant
+    object -- grant : 1..n
+    object -- object : 1..n (versions)
+    bucket -- grant : 1..n
+    bucket -- object : 1..n
+  }  
+  image -up-> object : 1..n
+  snapshot -up-> object : 1..n
+
+  euare --> walrus
+  euare --> clc
+@enduml
