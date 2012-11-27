@@ -1,0 +1,68 @@
+@startuml empyrean-stack.png
+title Empyrean Stack
+skinparam monochrome true
+folder "WS Pipeline (Netty)" {
+  frame "HTTP/S Stages" {
+    (Port) -d-> [SSL Bootstrap]
+':possibly establishes an SSL session
+    [SSL Bootstrap] -d-> [HTTP Encoding/Decoding]
+':processes bytes into an abstract form according to HTTP protocol
+    [HTTP Encoding/Decoding] -d-> [HTTP Chunking]
+':HTTP chunk processing (if needed; stateful)
+    [HTTP Chunking] -d-> [Bootstrap Fence]
+':only admit requests to a running system
+    [Bootstrap Fence] -d-> [Protocol Registry]
+':select protocol stages based on request processed so far
+  }
+  frame "Protocol Stages" {
+    [Protocol Registry] -d-> [SOAP/REST Processing]
+':initial protocol handling, request verification (well-formed; marshal/unmarshal)
+    [SOAP/REST Processing] -d-> [Authentication]
+':use extracted crypto tokens to authenticate a user identity
+    [Authentication] -d-> [Binding]
+':convert a verified, authenticated request into a POJO
+  }
+  frame "System Stages" {
+    [Binding] -d-> [Protocol Validation]
+':verify protocol produced a valid outcome
+    [Protocol Validation] -d-> [Service Routing]
+':determine destination host for request based on system state
+    [Service Routing] -d-> [Service Dispatch]
+':submit request to service bus 
+  }
+}
+cloud "ESB (Mule)" {
+  [Service Dispatch] -right-> [Request Queue]
+  [Reply Queue] -left-> [Service Dispatch]
+  [Request Queue] --> [Reply Queue] : request processing
+}
+@enduml
+@startuml empyrean-stack-comments.png
+title Empyrean Stack
+skinparam monochrome true
+folder "WS Pipeline (Netty)" {
+  frame "HTTP/S Stages" {
+    (Port) -d-> [SSL Bootstrap] : possibly establishes an SSL session
+    [SSL Bootstrap] -d-> [HTTP Encoding/Decoding] : processes bytes into an abstract form according to HTTP protocol
+    [HTTP Encoding/Decoding] -d-> [HTTP Chunking] : HTTP chunk processing (if needed; stateful)
+    [HTTP Chunking] -d-> [Bootstrap Fence] : only admit requests to a running system
+    [Bootstrap Fence] -d-> [Protocol Registry] : select protocol stages based on request processed so far
+  }
+  frame "Protocol Stages" {
+    [Protocol Registry] -d-> [SOAP/REST Processing] : initial protocol handling, request verification (well-formed; marshal/unmarshal)
+    [SOAP/REST Processing] -d-> [Authentication] : use extracted crypto tokens to authenticate a user identity
+    [Authentication] -d-> [Binding] : convert a verified, authenticated request into a POJO
+  }
+  frame "System Stages" {
+    [Binding] -d-> [Protocol Validation] : verify protocol produced a valid outcome
+    [Protocol Validation] -d-> [Service Routing] : determine destination host for request based on system state
+    [Service Routing] -d-> [Service Dispatch] : submit request to service bus 
+  }
+}
+cloud "ESB (Mule)" {
+  [Service Dispatch] -right-> [Request Queue]
+  [Reply Queue] -left-> [Service Dispatch]
+  [Request Queue] --> [Reply Queue] : request processing
+}
+@enduml
+

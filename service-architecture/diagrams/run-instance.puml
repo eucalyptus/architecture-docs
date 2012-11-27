@@ -1,0 +1,31 @@
+@startuml
+left to right direction
+scale 1024 width
+scale 768 height
+node CLC {
+  (EC2 API) -right-> [CLC State]
+}
+node CC {
+  interface Linux as cclinux
+  (CC API) -down-> [CC State]
+  [NC State Polling] --> [CC State]
+  [CC State] --> cclinux : 6
+  [CC State] --> cclinux : 7
+}
+node NC {
+  (NC API) -right-> [NC State]
+  [NC State] --> [NC Image] : 11
+  [NC State] --> [NC Volume]
+  [NC State] --> [NC Hypervisor] : 12
+}
+cloud Internet {
+  [User] -down-> (EC2 API) : 1
+}
+[CC State] -down-> (NC API) : 8
+[CC State] -down-> (NC API) : 9
+[NC State Polling] -down-> (NC API) : 10
+[CLC State] --> [CC API] : 2
+[CLC State] --> [CC API] : 3
+[CLC State] --> [CC API] : 4
+[CC State] --> (Metadata Service) : 5
+@enduml

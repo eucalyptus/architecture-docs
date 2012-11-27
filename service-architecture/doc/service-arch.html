@@ -68,7 +68,8 @@ for all AWS EC2 requests.  It also coordinates the Eucalyptus secure
 bootstrapping and component registration protocol.
 <li><b>EUARE</b> -- The EUARE service implements the Eucalyptus identity
 management system.  EUARE is compatible with the AWS Identity Access
-Management (IAM) API.  It also includes extensions specifically added for
+Management (IAM) and Simple Token Service (STS) APIs.  
+It also includes extensions specifically added for
 enterprise clouds such as resource quotas.
 <li><b>Walrus</b> -- Walrus implements object storage for Eucalyptus.  It is
 interface compatible with the AWS Simple Storage Service (S3).
@@ -301,26 +302,38 @@ invocation/function call and/or call backs.  The green arrow represents a
 query to the "fulfilled" state, and the red arrows represent messages formed
 and transmitted via the web service stack. 
 <p>
-When a user request arrives from a client tool, the web service stack 
+When a user request arrives from a client tool, a stage in the web service stack 
 takes care of authenticating the request.  
-The request processing stage authorizes each request using 
+The request processing stage validates the requestors identity for each request using 
 an identifier that is associated with the user and the user's credentials.
+This stage is defined as part of a component and protocol specific the 
+authentication mechanism.
+Across the components (CLC, Walrus, SC, etc.) and protocols (REST, Query v1,v2,v4, SOAP, etc.) 
+authentication depends upon EUARE for validating 
+user identity based on various cryptographic tokens: 
 (<a href="http://en.wikipedia.org/wiki/Public-key_infrastructure">
 PKI</a> certificates 
 or AWS-defined <a href="http://en.wikipedia.org/wiki/Hash-based_message_authentication_code">HMAC</a> 
 protocol based on shared keys)  
-Certificate management (creation, deletion, etc.) is
-implemented by a service component within the CLC (not shown in the 
+Management of these credentials (creation, deletion, etc.) is
+implemented by EUARE (not shown in the 
 architecture figure).
 <p>
-Once a request is authorized, the validity of the request
+Once a request is authenticated, the validity of the request
 in terms of the parameters it references is checked.  For example, a
-<code>euca-run-instances</code> command refers to a number of other resources
+<code>euca-run-instances</code> command (or <code>RunInstanceType</code> request)
+refers to a number of other resources
 within a Eucalyptus cloud (an image, a kernel, a ram disk, a security group,
 etc.)  The validation stage queries the state in the "fulfilled" subsystem in
-the
-state management stage to
-determine if these references are valid.
+the state management stage to determine if these references are valid; e.g., by 
+attempting to lookup the value.
+Authorization applied at the time that any reference identifier is resolved to 
+the underlying resource metadata it points to.  That is, when processing the
+<code>RunInstanceType</code> request, an image identifier (e.g,, <code>emi-C0FFEEEE</code>)
+needs to be resolved in order to determine the validity of the corresponding image registration
+(i.e., you cannot run an image which doesn't exist).
+Resolving an identifier like <code>emi-C0FFEEEE</code> is intermediated by an authorization
+interface (as part of EUARE) which enforces policies governing access to the referenced resource.
 <p>
 If the formation of the request is correct, it is
 forwarded to a reservation subsystem where any necessary

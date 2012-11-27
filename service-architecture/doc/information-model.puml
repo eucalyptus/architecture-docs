@@ -1,0 +1,109 @@
+@startuml information-model-instance-store.png
+  skinparam shadowing true
+  skinparam ranksep 10
+  skinparam nodesep 10
+  skinparam linetype ortho
+  skinparam monochrome true
+  left to right direction
+  scale 384 height
+  node "API Services" {
+    frame "Cloud Controller" {
+      component "Instance" as instance
+      component "Image" as image
+    }
+    frame Walrus {
+      component "Object" as object
+    }  
+  }    
+  node "Resource Management Services" {
+    frame "Node Controller" {
+      component "Virtual Machine" as vm
+      component "Downloaded Image" as downloadedimage
+      vm -- downloadedimage : boots
+    }
+  }
+  image -- object : verifies manifest
+  downloadedimage -- object : downloads EMI  
+@enduml
+
+@startuml information-model-instance-bfebs.png
+  skinparam shadowing true
+  skinparam ranksep 10
+  skinparam nodesep 10
+  skinparam linetype ortho
+  skinparam monochrome true
+  left to right direction
+  scale 384 height
+  node "API Services" {
+    frame "Cloud Controller" {
+      component "Instance" as instance
+      component "Volume" as volume
+      component "Snapshot" as snapshot
+      component "Image" as image
+      image -left-> snapshot : refers to
+      snapshot .left.> volume : creates
+      instance -left-> image : refers to
+    }
+    frame Walrus {
+      component "Object" as object
+    }  
+    snapshot -down-> object : refers to
+  }    
+  node "Resource Management Services" {
+    frame "Node Controller" {
+      component "Volume Attachment" as volumeattachment
+      component "Virtual Machine" as vm
+      volumeattachment -right-> vm
+    }
+    frame "Storage Controller" {
+      component "Storage Volume" as scvolume
+      component "Storage Volume Export" as scvolumexport
+      scvolume -left-> scvolumexport
+    }
+  }
+  object ..> scvolume
+  scvolume .up.> volume : from snapshot
+  volumeattachment -up-> scvolumexport
+@enduml
+
+@startuml information-model.png
+  skinparam shadowing true
+  skinparam ranksep 10
+  skinparam nodesep 10
+  skinparam linetype ortho
+  skinparam monochrome true
+  left to right direction
+  scale 768 height
+  node "API Services" {
+    frame "Cloud Controller" {
+      component "Instance" as instance
+      component "Security Group" as secgroup
+      component "Volume" as volume
+      component "Snapshot" as snapshot
+      component "Image" as image
+      component "Public Address" as publicaddress
+    }
+    frame Walrus {
+      component "Object" as object
+    }  
+  }    
+  node "Resource Management Services" {
+    frame "Cluster Controller" {
+      component "Private Network Tag" as ccgrouptag
+      component "Private Network Indexes" as ccgroupindex
+      component "Public Address Mapping" as ccaddr
+      ccgroupindex -- ccaddr : 1..{0,1}
+    }
+    frame "Node Controller" {
+      component "Virtual Machine" as vm
+      component "Bundling Instance" as bundle
+      component "Volume Attachment" as volumeattachment
+      vm -- volumeattachment : 1..n
+    }
+    frame "Storage Controller" {
+      component "Storage Volume" as scvolume
+      component "Storage Snapshot\n(in progress)" as scsnapshot
+      scvolume -- scsnapshot : 1..{0,1}
+    }
+  }
+@enduml

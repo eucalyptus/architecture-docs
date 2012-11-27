@@ -1,0 +1,21 @@
+@startuml
+cloud "Component Service" {
+  [Component Service] .down. (Service Operation) 
+':type based invokation
+}
+frame "Component Endpoint" {
+  [Component Request Queue] -down-> [Component Service]
+  [Component Service] -up-> [Component Reply Queue]
+}
+frame "WS Stack" {
+  (Request Channel) 
+}
+frame "System Endpoint" {
+  [Request Queue] -down-> [Component Request Queue]
+':type based message routing
+  [Reply Queue] -up-> (Request Channel) 
+  (Request Channel) -down-> [Request Queue] 
+':submit response back to ws-stack
+}
+[Component Reply Queue] -up-> [Reply Queue]
+@enduml
